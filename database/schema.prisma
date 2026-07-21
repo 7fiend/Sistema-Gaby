@@ -1,0 +1,675 @@
+// =============================================================================
+// Sistema Gaby — ERP Restaurante · schema.prisma
+// Fase 3 — Modelo de datos (ver docs/03-modelo-de-datos.md)
+//
+// Convenciones:
+//  - Modelos y campos en inglés (código en inglés, UI en español).
+//  - Dinero y cantidades: Decimal (nunca Float) — precisión contable.
+//  - Nada se borra físicamente: isActive / deletedAt (RN-06).
+//  - Tablas de hechos (movimientos, entregas, auditoría) son append-only:
+//    la API no expone UPDATE/DELETE sobre ellas (RN-02).
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL") // AD-04: portabilidad = solo esta variable
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum CategoryKind {
+  PRODUCT // categorías de insumos (carnes, verduras, empaques…)
+  RECIPE // categorías de recetas (almuerzos, sopas, bandejas…) — en Fase 18 representan tipos de dieta
+  EXPENSE // categorías de gastos (servicios, nómina, transporte…)
+}
+
+/// Fase 18: día de la semana del menú programado (RN independiente de la fecha exacta).
+enum WeekDay {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+/// Fase 18: tiempos de comida fijos del día (dos meriendas, mañana y tarde).
+enum MealTime {
+  BREAKFAST
+  MORNING_SNACK
+  LUNCH
+  AFTERNOON_SNACK
+  DINNER
+}
+
+/// Fase 18: cómo se descuenta el stock de un producto.
+enum ProductUsageType {
+  RECIPE // insumo de cocina: se descuenta por recetas/producción/báscula
+  ROUTINE // aseo/rutina: se descuenta por registro manual diario, no por báscula
+}
+
+enum UnitKind {
+  WEIGHT // kg, g, lb
+  VOLUME // l, ml
+  COUNT // unidad, paquete, docena
+}
+
+enum MovementType {
+  ENTRY // compra / ingreso
+  EXIT // salida a producción (entrega)
+  ADJUSTMENT_IN // ajuste positivo
+  ADJUSTMENT_OUT // ajuste negativo
+  WASTE // merma
+  LOSS // pérdida
+  EXPIRY // baja por vencimiento
+}
+
+enum ProductionStatus {
+  DRAFT
+  CONFIRMED
+  IN_DELIVERY
+  DELIVERED
+  IN_PREPARATION
+  COMPLETED
+  CLOSED
+  CANCELLED // solo desde DRAFT/CONFIRMED sin entregas (RF-04.5)
+}
+
+enum RequirementStatus {
+  PENDING
+  PARTIAL
+  DELIVERED
+  BLOCKED // último intento fuera de tolerancia
+}
+
+enum WeightSource {
+  SCALE // báscula física
+  SIMULATOR // simulador (solo desarrollo)
+  COUNT // producto no pesable, conteo por unidad (RF-05.6)
+}
+
+enum AuditKind {
+  AUTH
+  CRUD
+  INVENTORY
+  PRODUCTION
+  SECURITY // intentos fuera de tolerancia, permisos denegados, logins fallidos
+  SYSTEM
+  ERROR
+}
+
+enum BackupType {
+  MANUAL
+  SCHEDULED
+}
+
+enum BackupStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum ReportFormat {
+  PDF
+  XLSX
+  CSV
+}
+
+// =============================================================================
+// IDENTIDAD Y ACCESO
+// =============================================================================
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique // ADMIN, INVENTORY, KITCHEN, AUDITOR (+ futuros)
+  description String?
+  isSystem    Boolean  @default(false) // los 4 roles base no se eliminan
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permissions RolePermission[]
+  users       User[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id       String @id @default(cuid())
+  resource String // "recipes", "inventory", "production", …
+  action   String // "read", "create", "update", "deliver", "export", …
+
+  roles RolePermission[]
+
+  @@unique([resource, action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model User {
+  id             String    @id @default(cuid())
+  username       String    @unique
+  email          String?   @unique
+  passwordHash   String
+  fullName       String
+  roleId         String
+  isActive       Boolean   @default(true)
+  failedAttempts Int       @default(0)
+  lockedUntil    DateTime? // RF-01.5
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  role             Role              @relation(fields: [roleId], references: [id])
+  sessions         Session[]
+  auditLogs        AuditLog[]
+  stockMovements   StockMovement[]
+  productionOrders ProductionOrder[]
+  deliveries       Delivery[]
+  expenses         Expense[]
+  sales            SaleRecord[]
+  recipeVersions   RecipeVersion[]
+  backups          Backup[]
+  reports          Report[]
+
+  @@index([roleId])
+  @@map("users")
+}
+
+model Session {
+  id               String    @id @default(cuid())
+  userId           String
+  refreshTokenHash String    @unique
+  userAgent        String?
+  ip               String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, expiresAt])
+  @@map("sessions")
+}
+
+// =============================================================================
+// CATÁLOGOS
+// =============================================================================
+
+model Sede {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  products         Product[]
+  productionOrders ProductionOrder[]
+
+  @@map("sedes")
+}
+
+model Category {
+  id        String       @id @default(cuid())
+  kind      CategoryKind
+  name      String
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+
+  products Product[]
+  recipes  Recipe[]
+  expenses Expense[]
+  weeklyMenuSlots WeeklyMenuSlot[]
+
+  @@unique([kind, name])
+  @@map("categories")
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  contact   String?
+  phone     String?
+  email     String?
+  notes     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+
+  @@map("suppliers")
+}
+
+model Unit {
+  id           String   @id @default(cuid())
+  name         String   @unique // "Kilogramo", "Gramo", "Litro", "Unidad"…
+  abbreviation String   @unique // "kg", "g", "l", "und"
+  kind         UnitKind
+  // Factor a la unidad base de su tipo (WEIGHT→kg, VOLUME→l, COUNT→und).
+  // Ej: gramo = 0.001, libra = 0.453592. Conversión centralizada (RF-03.6).
+  factorToBase Decimal  @db.Decimal(12, 6)
+
+  products          Product[]
+  recipeIngredients RecipeIngredient[]
+
+  @@map("units")
+}
+
+// =============================================================================
+// INVENTARIO
+// =============================================================================
+
+model Product {
+  id           String  @id @default(cuid())
+  code         String  @unique // código interno (RF-03.1)
+  name         String
+  categoryId   String
+  supplierId   String?
+  unitId       String // unidad base de stock (kg, l, und)
+  currentStock Decimal @default(0) @db.Decimal(12, 3)
+  minStock     Decimal @default(0) @db.Decimal(12, 3)
+  // Costeo promedio ponderado móvil (RF-08.2, decisión cliente).
+  avgCost      Decimal @default(0) @db.Decimal(14, 4) // costo vigente por unidad base
+  lastCost     Decimal @default(0) @db.Decimal(14, 4) // informativo
+  location     String? // ubicación en bodega
+  isWeighable  Boolean @default(true) // false → entrega por conteo (RF-05.6)
+  // Sobrescribe la tolerancia global para este producto (RN-04). Null = global.
+  toleranceKg  Decimal? @db.Decimal(8, 3)
+  // Fase 18: ROUTINE (aseo) nunca pasa por báscula/tolerancia/entregas — se
+  // descuenta por registro manual diario (ver RoutineConsumption en InventoryUseCases).
+  usageType    ProductUsageType @default(RECIPE)
+  isActive     Boolean @default(true)
+  sedeId       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  category          Category                @relation(fields: [categoryId], references: [id])
+  supplier          Supplier?               @relation(fields: [supplierId], references: [id])
+  unit              Unit                    @relation(fields: [unitId], references: [id])
+  sede              Sede?                   @relation(fields: [sedeId], references: [id])
+  batches           ProductBatch[]
+  movements         StockMovement[]
+  recipeIngredients RecipeIngredient[]
+  requirements      ProductionRequirement[]
+
+  @@index([categoryId])
+  @@index([name])
+  @@map("products")
+}
+
+model ProductBatch {
+  id                String    @id @default(cuid())
+  productId         String
+  batchNumber       String
+  initialQuantity   Decimal   @db.Decimal(12, 3)
+  remainingQuantity Decimal   @db.Decimal(12, 3)
+  unitCost          Decimal   @db.Decimal(14, 4)
+  expiryDate        DateTime? // null = no perecedero
+  receivedAt        DateTime  @default(now())
+
+  product   Product         @relation(fields: [productId], references: [id])
+  movements StockMovement[]
+
+  @@unique([productId, batchNumber])
+  // Índice clave para FEFO (RN-05) y alertas de vencimiento (RF-03.4)
+  @@index([productId, expiryDate])
+  @@map("product_batches")
+}
+
+/// Append-only (RN-02). Correcciones = movimiento de ajuste compensatorio.
+model StockMovement {
+  id        String       @id @default(cuid())
+  productId String
+  batchId   String?
+  type      MovementType
+  quantity  Decimal      @db.Decimal(12, 3) // siempre positiva; el tipo da el signo
+  unitCost  Decimal      @db.Decimal(14, 4) // snapshot al momento (RN-03)
+  totalCost Decimal      @db.Decimal(14, 2)
+  // Saldo resultante tras el movimiento → kardex auditable sin recalcular
+  balanceAfter Decimal   @db.Decimal(12, 3)
+  reason    String?
+  // Referencia polimórfica al origen: "delivery", "purchase", "manual"…
+  // (la relación exacta con una entrega vive en delivery.movementId, no aquí)
+  reference String?
+  userId    String
+  createdAt DateTime     @default(now())
+
+  product  Product       @relation(fields: [productId], references: [id])
+  batch    ProductBatch? @relation(fields: [batchId], references: [id])
+  user     User          @relation(fields: [userId], references: [id])
+  delivery Delivery?
+
+  @@index([productId, createdAt])
+  @@index([type, createdAt])
+  @@map("stock_movements")
+}
+
+// =============================================================================
+// RECETAS
+// =============================================================================
+
+model Recipe {
+  id              String   @id @default(cuid())
+  name            String
+  categoryId      String
+  imageUrl        String?
+  description     String?
+  prepTimeMinutes Int      @default(0)
+  yieldPortions   Int      @default(1) // rendimiento
+  targetMarginPct Decimal  @default(60) @db.Decimal(5, 2) // margen objetivo
+  // Costos VIGENTES (se recalculan en cascada al cambiar avgCost — RF-02.4).
+  // Los históricos viven como snapshot en ProductionOrderItem (RN-03).
+  currentCost     Decimal  @default(0) @db.Decimal(14, 2) // por lote de rendimiento
+  costPerPortion  Decimal  @default(0) @db.Decimal(14, 2)
+  suggestedPrice  Decimal  @default(0) @db.Decimal(14, 2) // referencia: costo/porción ÷ (1 − margen)
+  // Precio real al que se vende, fijado a mano por el dueño (null = todavía no
+  // se ha definido). A diferencia de currentCost/costPerPortion/suggestedPrice,
+  // NUNCA lo toca el recálculo en cascada — es una decisión de negocio, no un costo.
+  sellingPrice    Decimal? @db.Decimal(14, 2)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  category        Category              @relation(fields: [categoryId], references: [id])
+  versions        RecipeVersion[]
+  productionItems ProductionOrderItem[]
+  saleItems       SaleItem[]
+  weeklyMenuSlots WeeklyMenuSlot[]
+
+  @@unique([name, categoryId])
+  @@index([categoryId])
+  @@map("recipes")
+}
+
+/// Fase 18: qué receta toca cocinar cada día×tiempo de comida×categoría (dieta).
+/// Configuración viva editable por el admin — no versiona como las recetas.
+model WeeklyMenuSlot {
+  id         String   @id @default(cuid())
+  dayOfWeek  WeekDay
+  mealTime   MealTime
+  categoryId String
+  recipeId   String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  category Category @relation(fields: [categoryId], references: [id])
+  recipe   Recipe   @relation(fields: [recipeId], references: [id])
+
+  @@unique([dayOfWeek, mealTime, categoryId])
+  @@map("weekly_menu_slots")
+}
+
+/// Editar ingredientes/pasos crea una versión nueva (RF-02.5).
+/// Las producciones referencian la versión exacta usada.
+model RecipeVersion {
+  id            String   @id @default(cuid())
+  recipeId      String
+  versionNumber Int
+  steps         Json     @default("[]") // [{ order, text }]
+  notes         String?
+  isCurrent     Boolean  @default(true)
+  createdById   String
+  createdAt     DateTime @default(now())
+
+  recipe          Recipe                @relation(fields: [recipeId], references: [id])
+  createdBy       User                  @relation(fields: [createdById], references: [id])
+  ingredients     RecipeIngredient[]
+  productionItems ProductionOrderItem[]
+
+  @@unique([recipeId, versionNumber])
+  @@index([recipeId, isCurrent])
+  @@map("recipe_versions")
+}
+
+model RecipeIngredient {
+  id              String  @id @default(cuid())
+  recipeVersionId String
+  productId       String
+  quantity        Decimal @db.Decimal(12, 4) // por lote de rendimiento de la receta
+  unitId          String
+
+  version RecipeVersion @relation(fields: [recipeVersionId], references: [id])
+  product Product       @relation(fields: [productId], references: [id])
+  unit    Unit          @relation(fields: [unitId], references: [id])
+
+  @@unique([recipeVersionId, productId])
+  @@index([productId]) // → "¿qué recetas usan este producto?" (recálculo en cascada)
+  @@map("recipe_ingredients")
+}
+
+// =============================================================================
+// PRODUCCIÓN
+// =============================================================================
+
+model ProductionOrder {
+  id          String           @id @default(cuid())
+  orderNumber String           @unique // "OP-2026-0001", secuencia legible
+  date        DateTime         @db.Date
+  status      ProductionStatus @default(DRAFT)
+  notes       String?
+  createdById String
+  confirmedAt DateTime?
+  closedAt    DateTime?
+  sedeId      String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  createdBy    User                    @relation(fields: [createdById], references: [id])
+  sede         Sede?                   @relation(fields: [sedeId], references: [id])
+  items        ProductionOrderItem[]
+  requirements ProductionRequirement[]
+
+  @@index([date, status])
+  @@map("production_orders")
+}
+
+model ProductionOrderItem {
+  id              String @id @default(cuid())
+  orderId         String
+  recipeId        String
+  recipeVersionId String // versión exacta usada (RF-02.5)
+  portions        Int
+  // Snapshots congelados al confirmar (RN-03):
+  costPerPortionSnapshot Decimal @default(0) @db.Decimal(14, 2)
+  totalCostSnapshot      Decimal @default(0) @db.Decimal(14, 2)
+
+  order   ProductionOrder @relation(fields: [orderId], references: [id])
+  recipe  Recipe          @relation(fields: [recipeId], references: [id])
+  version RecipeVersion   @relation(fields: [recipeVersionId], references: [id])
+
+  @@unique([orderId, recipeId])
+  @@map("production_order_items")
+}
+
+/// Explosión consolidada de ingredientes (RF-04.2): una fila por producto.
+model ProductionRequirement {
+  id                String            @id @default(cuid())
+  orderId           String
+  productId         String
+  requiredQuantity  Decimal           @db.Decimal(12, 3) // en unidad base del producto
+  deliveredQuantity Decimal           @default(0) @db.Decimal(12, 3)
+  status            RequirementStatus @default(PENDING)
+  // Tolerancia congelada al confirmar (global o del producto) — RN-04
+  toleranceApplied  Decimal           @db.Decimal(8, 3)
+
+  order      ProductionOrder @relation(fields: [orderId], references: [id])
+  product    Product         @relation(fields: [productId], references: [id])
+  deliveries Delivery[]
+
+  @@unique([orderId, productId])
+  @@index([status])
+  @@map("production_requirements")
+}
+
+/// Cada pesada/entrega. Append-only (RN-02). Incluye intentos bloqueados.
+model Delivery {
+  id            String       @id @default(cuid())
+  requirementId String
+  quantity      Decimal      @db.Decimal(12, 3) // peso o conteo entregado
+  source        WeightSource
+  // Lecturas crudas de la báscula que respaldan el peso (RF-06.4) — evidencia
+  readings      Json         @default("[]")
+  withinTolerance Boolean
+  approved      Boolean // false = intento bloqueado, queda registrado (RF-05.3)
+  movementId    String?      @unique // salida de stock generada (si aprobada)
+  deliveredById String
+  createdAt     DateTime     @default(now())
+
+  requirement ProductionRequirement @relation(fields: [requirementId], references: [id])
+  movement    StockMovement?        @relation(fields: [movementId], references: [id])
+  deliveredBy User                  @relation(fields: [deliveredById], references: [id])
+
+  @@index([requirementId])
+  @@map("deliveries")
+}
+
+// =============================================================================
+// VENTAS (registro diario simple — decisión cliente §6.1)
+// =============================================================================
+
+model SaleRecord {
+  id           String   @id @default(cuid())
+  date         DateTime @db.Date
+  notes        String?
+  registeredById String
+  createdAt    DateTime @default(now())
+
+  registeredBy User       @relation(fields: [registeredById], references: [id])
+  items        SaleItem[]
+
+  @@unique([date]) // un registro consolidado por día
+  @@map("sale_records")
+}
+
+model SaleItem {
+  id           String  @id @default(cuid())
+  saleRecordId String
+  recipeId     String
+  portions     Int
+  unitPrice    Decimal @db.Decimal(14, 2)
+  total        Decimal @db.Decimal(14, 2)
+
+  saleRecord SaleRecord @relation(fields: [saleRecordId], references: [id])
+  recipe     Recipe     @relation(fields: [recipeId], references: [id])
+
+  @@unique([saleRecordId, recipeId])
+  @@map("sale_items")
+}
+
+// =============================================================================
+// GASTOS
+// =============================================================================
+
+model Expense {
+  id          String   @id @default(cuid())
+  categoryId  String // Category kind=EXPENSE
+  amount      Decimal  @db.Decimal(14, 2)
+  date        DateTime @db.Date
+  description String
+  receiptUrl  String?
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category  Category @relation(fields: [categoryId], references: [id])
+  createdBy User     @relation(fields: [createdById], references: [id])
+
+  @@index([date])
+  @@index([categoryId, date])
+  @@map("expenses")
+}
+
+// =============================================================================
+// AUDITORÍA (append-only absoluto — RF-13, RN-02, RN-07)
+// =============================================================================
+
+model AuditLog {
+  id         String    @id @default(cuid())
+  kind       AuditKind
+  userId     String? // null en errores de sistema / intentos anónimos
+  action     String // "login", "recipe.update", "delivery.blocked"…
+  resource   String? // entidad afectada
+  resourceId String?
+  before     Json? // estado previo (diff)
+  after      Json? // estado posterior
+  metadata   Json? // ip, userAgent, contexto extra
+  createdAt  DateTime  @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([resource, resourceId])
+  @@index([kind, createdAt])
+  @@map("audit_logs")
+}
+
+// =============================================================================
+// SISTEMA: alertas, configuración, respaldos, reportes
+// =============================================================================
+
+model Alert {
+  id        String   @id @default(cuid())
+  type      String // "stock_low", "batch_expiring", "delivery_blocked"…
+  message   String
+  data      Json?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([isRead, createdAt])
+  @@map("alerts")
+}
+
+model AppSetting {
+  key       String   @id // "scale.toleranceKg", "costing.defaultMarginPct"…
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("app_settings")
+}
+
+model Backup {
+  id          String       @id @default(cuid())
+  filename    String       @unique
+  sizeBytes   BigInt       @default(0)
+  type        BackupType
+  status      BackupStatus @default(RUNNING)
+  error       String?
+  createdById String? // null = programado por el sistema
+  createdAt   DateTime     @default(now())
+
+  createdBy User? @relation(fields: [createdById], references: [id])
+
+  @@map("backups")
+}
+
+/// Reportes generados: no se eliminan (RF-12.3), solo se regeneran.
+model Report {
+  id          String       @id @default(cuid())
+  type        String // "sales", "production", "profitability"…
+  params      Json // filtros usados (rango de fechas, etc.)
+  format      ReportFormat
+  filePath    String
+  createdById String
+  createdAt   DateTime     @default(now())
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([type, createdAt])
+  @@map("reports")
+}

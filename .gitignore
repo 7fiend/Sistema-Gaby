@@ -1,0 +1,23 @@
+# Dependencias
+node_modules/
+
+# Builds
+dist/
+build/
+
+# Entorno (secretos locales — nunca versionar)
+.env
+.env.local
+.env.test
+.env.*.local
+
+# Datos locales
+uploads/*
+!uploads/.gitkeep
+backups/*
+!backups/.gitkeep
+
+# Logs y temporales
+*.log
+.DS_Store
+Thumbs.db
