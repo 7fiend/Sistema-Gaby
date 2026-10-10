@@ -7,6 +7,7 @@ import {
   backupsQuerySchema,
   categoryCreateSchema,
   categoryUpdateSchema,
+  employeeSchema,
   dashboardQuerySchema,
   deliveryRegisterSchema,
   entrySchema,
@@ -28,6 +29,9 @@ import {
   recipeUpdateSchema,
   recipesQuerySchema,
   routineConsumptionSchema,
+  scheduleGenerateSchema,
+  scheduleMonthQuerySchema,
+  shiftAssignmentUpdateSchema,
   saleRecordSchema,
   salesQuerySchema,
   settingsUpdateSchema,
@@ -43,6 +47,7 @@ import { validate } from '../middleware/validate.js';
 import { requireAuth, requirePermission } from '../middleware/auth.js';
 import { categoriesQuerySchema } from '../controllers/catalog.controller.js';
 import { saleDayQuerySchema } from '../controllers/sales.controller.js';
+import { employeesQuerySchema } from '../controllers/schedules.controller.js';
 import { isDev } from '../../../config/env.js';
 
 /** Router raíz /api/v1 — un sub-router por módulo. */
@@ -162,6 +167,17 @@ export function buildRoutes(c: Container): Router {
   // --- Configuración del sistema ---
   router.get('/settings', auth, perm('settings:read'), c.settingsController.get);
   router.put('/settings', auth, perm('settings:update'), validate({ body: settingsUpdateSchema }), c.settingsController.update);
+
+  // --- Horarios de empleadas (Fase 19) ---
+  router.get('/employees', auth, perm('employees:read'), validate({ query: employeesQuerySchema }), c.schedulesController.listEmployees);
+  router.post('/employees', auth, perm('employees:create'), validate({ body: employeeSchema }), c.schedulesController.createEmployee);
+  router.put('/employees/:id', auth, perm('employees:update'), validate({ body: employeeSchema.partial() }), c.schedulesController.updateEmployee);
+  router.post('/employees/:id/deactivate', auth, perm('employees:deactivate'), c.schedulesController.deactivateEmployee);
+  router.get('/schedules', auth, perm('schedules:read'), validate({ query: scheduleMonthQuerySchema }), c.schedulesController.getMonth);
+  router.get('/schedules/export', auth, perm('schedules:read'), validate({ query: scheduleMonthQuerySchema }), c.schedulesController.exportXlsx);
+  router.post('/schedules/generate', auth, perm('schedules:generate'), validate({ body: scheduleGenerateSchema }), c.schedulesController.generate);
+  router.put('/schedules/:id/assignments', auth, perm('schedules:update'), validate({ body: shiftAssignmentUpdateSchema }), c.schedulesController.updateAssignment);
+  router.post('/schedules/:id/publish', auth, perm('schedules:publish'), c.schedulesController.publish);
 
   // --- Cocina: monitor de solo lectura (RF-11) ---
   router.get('/kitchen/summary', auth, perm('kitchen:read'), validate({ query: kitchenSummaryQuerySchema }), c.kitchenController.summary);

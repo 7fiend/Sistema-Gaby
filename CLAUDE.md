@@ -11,8 +11,8 @@ por el cliente**: cada fase se construye, se verifica en ejecución real (typech
 pruebas E2E + navegador) y se documenta en `docs/` antes de pedir aprobación para la
 siguiente. **No avanzar de fase sin aprobación explícita del usuario.**
 
-- Completado: Fases 1–16 (hoja de ruta original: 9a recetas+inventario · 9b producción+ventas+gastos · 9c dashboard+usuarios+configuración · 10 bodega+báscula · 11 módulo cocina · 12 reportes · 13 auditoría+respaldos · 14 pruebas · 15 optimización · 16 documentación) + Fase 17 (fuera de la hoja de ruta, pedida por el cliente: entrada de inventario por costo total, precio de venta editable en Recetas).
-- **Sin fase siguiente definida.** Si el cliente pide trabajo nuevo, proponer la siguiente fase (18) y esperar aprobación antes de construir, igual que las anteriores.
+- Completado: Fases 1–16 (hoja de ruta original: 9a recetas+inventario · 9b producción+ventas+gastos · 9c dashboard+usuarios+configuración · 10 bodega+báscula · 11 módulo cocina · 12 reportes · 13 auditoría+respaldos · 14 pruebas · 15 optimización · 16 documentación) + fases pedidas por el cliente fuera de la hoja de ruta: 17 (costeo por total, precio de venta editable) · 18 (categorías editables, menú semanal con recomendación por inventario, rutina de aseo) · 19 (horarios de empleadas).
+- **Sin fase siguiente definida.** Si el cliente pide trabajo nuevo, proponer la siguiente fase (20) y esperar aprobación antes de construir, igual que las anteriores.
 
 ## Comandos
 
@@ -24,9 +24,9 @@ npm run db:seed          # datos de prueba (idempotente, upserts)
 npm run db:studio        # explorador de BD
 npm run build -w client  # build de producción del cliente (server no necesita build, corre con tsx)
 npm test                 # unit + integración (Vitest, server) — requiere BD de prueba sistema_gaby_test
-npm run test:e2e         # las 8 suites E2E en un solo comando (requiere npm run dev corriendo)
+npm run test:e2e         # las 9 suites E2E en un solo comando (requiere npm run dev corriendo)
 ```
-Suites E2E sueltas: `npx tsx scripts/test-9a.mts` (y `9b`/`9c`/`10`/`11`/`12`/`13`/`realtime`) —
+Suites E2E sueltas: `npx tsx scripts/test-9a.mts` (y `9b`/`9c`/`10`/`11`/`12`/`13`/`19`/`realtime`) —
 detalle de qué cubre cada una en `docs/14-pruebas.md`.
 
 Usuarios seed (clave `Gaby2026*`): `admin`, `bodega`, `cocina`, `auditor`.
@@ -64,5 +64,6 @@ IAuditLogger/ITokenService) → `infrastructure` (Prisma, JWT, Socket.IO) → `p
 `11` cocina · `12` reportes · `13` auditoría+respaldos · `14` pruebas · `15` optimización ·
 `16` documentación (README, manuales por módulo, guías de instalación/migración/actualización) ·
 `17` costeo por total + precio de venta editable · `18` menú semanal + recomendación por
-inventario + rutina de aseo (fases fuera de la hoja de ruta original, pedidas por el cliente).
+inventario + rutina de aseo · `19` horarios de empleadas (fases fuera de la hoja de ruta
+original, pedidas por el cliente).
 Cada nueva fase agrega su doc siguiendo el mismo formato (qué se construyó, decisiones, verificaciones).

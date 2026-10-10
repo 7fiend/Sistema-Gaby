@@ -26,6 +26,8 @@ import { PrismaReportRepository } from './infrastructure/database/repositories/P
 import { PrismaAuditRepository } from './infrastructure/database/repositories/PrismaAuditRepository.js';
 import { PrismaBackupRepository } from './infrastructure/database/repositories/PrismaBackupRepository.js';
 import { PrismaWeeklyMenuRepository } from './infrastructure/database/repositories/PrismaWeeklyMenuRepository.js';
+import { PrismaScheduleRepository } from './infrastructure/database/repositories/PrismaScheduleRepository.js';
+import { ExcelScheduleExporter } from './infrastructure/schedules/ExcelScheduleExporter.js';
 import { PgDumpBackupService } from './infrastructure/backups/PgDumpBackupService.js';
 import { GetCatalogs } from './application/use-cases/catalog/GetCatalogs.js';
 import { CategoryUseCases } from './application/use-cases/catalog/CategoryUseCases.js';
@@ -47,6 +49,7 @@ import { ReportUseCases } from './application/use-cases/reports/ReportUseCases.j
 import { AuditUseCases } from './application/use-cases/audit/AuditUseCases.js';
 import { BackupUseCases } from './application/use-cases/backups/BackupUseCases.js';
 import { WeeklyMenuUseCases } from './application/use-cases/menu/WeeklyMenuUseCases.js';
+import { ScheduleUseCases } from './application/use-cases/schedules/ScheduleUseCases.js';
 import { PrismaDashboardRepository } from './infrastructure/database/repositories/PrismaDashboardRepository.js';
 import { CatalogController } from './presentation/http/controllers/catalog.controller.js';
 import { AuthController } from './presentation/http/controllers/auth.controller.js';
@@ -64,6 +67,7 @@ import { ReportsController } from './presentation/http/controllers/reports.contr
 import { AuditController } from './presentation/http/controllers/audit.controller.js';
 import { BackupsController } from './presentation/http/controllers/backups.controller.js';
 import { WeeklyMenuController } from './presentation/http/controllers/weeklyMenu.controller.js';
+import { SchedulesController } from './presentation/http/controllers/schedules.controller.js';
 import type { ITokenService } from './application/ports/ITokenService.js';
 import type { IEventBus } from './application/ports/IEventBus.js';
 
@@ -97,6 +101,8 @@ export function buildContainer({ eventBus, tokens }: ContainerDeps) {
   const backupRepo = new PrismaBackupRepository(prisma);
   const backupService = new PgDumpBackupService();
   const weeklyMenuRepo = new PrismaWeeklyMenuRepository(prisma);
+  const scheduleRepo = new PrismaScheduleRepository(prisma);
+  const scheduleExporter = new ExcelScheduleExporter();
 
   // --- Casos de uso ---
   const getCatalogs = new GetCatalogs(catalogRepo);
@@ -119,6 +125,7 @@ export function buildContainer({ eventBus, tokens }: ContainerDeps) {
   const auditLogs = new AuditUseCases(auditRepo);
   const backups = new BackupUseCases(backupRepo, backupService, settings, audit);
   const weeklyMenu = new WeeklyMenuUseCases(weeklyMenuRepo, audit);
+  const schedules = new ScheduleUseCases(scheduleRepo, scheduleExporter, settingsRepo, audit);
 
   // --- Controllers ---
   const catalogController = new CatalogController(getCatalogs, categoryUseCases);
@@ -137,6 +144,7 @@ export function buildContainer({ eventBus, tokens }: ContainerDeps) {
   const auditController = new AuditController(auditLogs);
   const backupsController = new BackupsController(backups);
   const weeklyMenuController = new WeeklyMenuController(weeklyMenu);
+  const schedulesController = new SchedulesController(schedules);
 
   return {
     catalogController,
@@ -155,6 +163,7 @@ export function buildContainer({ eventBus, tokens }: ContainerDeps) {
     auditController,
     backupsController,
     weeklyMenuController,
+    schedulesController,
     backups,
     settings,
     expiryAlerts,

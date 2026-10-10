@@ -16,6 +16,7 @@ import {
   LogOut,
   CalendarDays,
   CalendarCheck,
+  CalendarClock,
   Tags,
 } from 'lucide-react';
 import { useTheme } from '@/stores/theme';
@@ -56,6 +57,7 @@ const operacion = [
   { to: '/admin/recetas', label: 'Recetas', icon: BookOpenText },
   { to: '/admin/menu-semanal', label: 'Menú semanal', icon: CalendarDays },
   { to: '/admin/inventario', label: 'Inventario', icon: Boxes },
+  { to: '/admin/horarios', label: 'Horarios', icon: CalendarClock },
   { to: '/admin/ventas', label: 'Ventas', icon: Receipt },
   { to: '/admin/gastos', label: 'Gastos', icon: Wallet },
   { to: '/admin/reportes', label: 'Reportes', icon: BarChart3 },

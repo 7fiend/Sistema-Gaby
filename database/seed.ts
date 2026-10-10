@@ -34,6 +34,8 @@ const RESOURCES_ACTIONS: Record<string, string[]> = {
   categories: ['create', 'update', 'deactivate'],
   menu: ['read', 'update'],
   routine: ['register'],
+  employees: ['read', 'create', 'update', 'deactivate'],
+  schedules: ['read', 'generate', 'update', 'publish'],
 };
 
 const ROLE_GRANTS: Record<string, (r: string, a: string) => boolean> = {

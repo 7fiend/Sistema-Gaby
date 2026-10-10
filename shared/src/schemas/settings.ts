@@ -5,6 +5,9 @@ import { z } from 'zod';
  * Nombres en camelCase para la UI; el servidor los mapea a SETTING_KEYS.
  */
 export const settingsSchema = z.object({
+  /** Fase 19: encabezado del horario exportado (y documentos futuros). */
+  businessName: z.string().trim().max(120),
+  businessNit: z.string().trim().max(40),
   /** Tolerancia global de báscula en kg (RN-04). */
   toleranceKg: z.coerce.number().positive('Debe ser mayor a 0').max(5, 'Máximo 5 kg'),
   /** Lecturas estables requeridas por el ScaleService (RF-06.4). */

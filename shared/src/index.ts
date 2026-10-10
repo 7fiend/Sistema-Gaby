@@ -18,4 +18,5 @@ export * from './schemas/audit.js';
 export * from './schemas/backups.js';
 export * from './schemas/categories.js';
 export * from './schemas/weeklyMenu.js';
+export * from './schemas/schedules.js';
 export * from './events/index.js';

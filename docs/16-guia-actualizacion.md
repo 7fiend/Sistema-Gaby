@@ -75,13 +75,12 @@ archivos NO tocar — un descuido (por ejemplo, sobrescribir `server/.env`) pued
 instalación del cliente. No hay forma fácil de ver "qué cambió exactamente" ni de deshacer una
 actualización si algo sale mal, más allá de restaurar el respaldo del paso 0.
 
-## Opción B — Con Git (recomendado a partir de ahora)
+## Opción B — Con Git (ya activo desde la Fase 18)
 
-Este proyecto ya tiene un `.gitignore` correcto (excluye `node_modules/`, `dist/`, `.env*`,
-`uploads/`, `backups/` desde antes) pero **todavía no es un repositorio Git** — no se ha corrido
-`git init`. Configurarlo es un paso único; después, cada actualización futura se reduce a
-`git pull` en el PC del cliente, sin tener que recordar qué excluir a mano (el `.gitignore` ya lo
-resuelve siempre).
+El proyecto ya es un repositorio Git, con remoto privado en
+[github.com/7fiend/Sistema-Gaby](https://github.com/7fiend/Sistema-Gaby) (el `.gitignore` ya
+excluía `node_modules/`, `dist/`, `.env*`, `uploads/`, `backups/` desde antes, así que activarlo
+no arrastró nada de eso). Cada fase nueva se sube ahí; el PC del cliente solo necesita `git pull`.
 
 ### Qué cambia con Git
 - El primer paso ("traer el código nuevo") pasa de "copiar la carpeta completa con cuidado" a
@@ -96,23 +95,42 @@ resuelve siempre).
 - Pasos 2–5 (instalar dependencias, migrar, sembrar, reconstruir) **no cambian** — Git solo
   reemplaza el paso 1.
 
-### Qué hace falta configurar (una sola vez)
-1. **Inicializar el repositorio** en esta copia de desarrollo: `git init`, primer commit con
-   todo el código actual. Es local, no sube nada a ningún lado todavía.
-2. **Elegir dónde vive el remoto** — la única decisión real:
-   - **Repositorio privado en GitHub/GitLab** (gratis para repos privados): más simple de
-     mantener, funciona desde cualquier lugar con internet. El PC del restaurante necesita
-     conexión a internet al momento de actualizar (no todo el tiempo — solo cuando corras
-     `git pull`), y hace falta una cuenta con acceso al repo privado en ese PC.
-   - **Repositorio "bare" local** (en una carpeta de red compartida, o incluso un USB): no
-     depende de internet ni de una cuenta externa — todo el código se queda dentro de tu propia
-     red o dispositivos. Un poco más de configuración inicial (`git clone --bare` a la carpeta
-     compartida, `git remote add origin <ruta>` en cada PC), pero una vez hecho funciona igual de
-     simple (`git push` desde aquí, `git pull` en el PC del cliente).
-3. **Instalar Git** en el PC del cliente si no lo tiene ([git-scm.com](https://git-scm.com/download/win))
-   y clonar el repositorio una sola vez (`git clone <remoto>`).
+### Primera vez: conectar el PC del cliente (ya tiene una instalación manual, sin Git)
 
-### Actualización ya con Git configurado
+El PC del cliente ya tiene el proyecto corriendo de una instalación anterior (copiado a mano, sin
+Git) con su propio `server/.env` y datos de prueba en PostgreSQL. **No** conviertas esa carpeta
+existente en un repo con `git init` ahí encima — es más simple y más seguro clonar limpio al lado
+y trasplantar la configuración, sin arriesgar lo que ya funciona:
+
+1. **Instalar Git para Windows** en ese PC: [git-scm.com/download/win](https://git-scm.com/download/win),
+   opciones por defecto. El instalador incluye Git Credential Manager, que te va a abrir el
+   navegador para iniciar sesión en GitHub la primera vez que haga falta (el repo es privado).
+2. **Respaldo real** desde `/admin/respaldos` en la instalación actual, antes de tocar nada.
+3. **Detener la app** que esté corriendo (`Ctrl+C`, o el proceso/servicio si es modo producción).
+4. **Clonar en una carpeta nueva, al lado de la actual** (no dentro, no encima):
+   ```powershell
+   cd C:\  # o la carpeta padre donde vive el proyecto actual
+   git clone https://github.com/7fiend/Sistema-Gaby.git "Sistema Gaby (git)"
+   ```
+   Te va a pedir iniciar sesión en GitHub la primera vez (ventana del navegador) — es una cuenta
+   con acceso al repo privado, la misma con la que se creó o a la que se invitó.
+5. **Trasplantar la configuración y los datos de ESA instalación** (no vienen en el repo, es
+   exactamente lo que el `.gitignore` protege):
+   ```powershell
+   copy "Sistema Gaby\server\.env" "Sistema Gaby (git)\server\.env"
+   copy "Sistema Gaby\client\.env" "Sistema Gaby (git)\client\.env"   # si existe uno propio
+   xcopy "Sistema Gaby\uploads" "Sistema Gaby (git)\uploads" /E /I
+   xcopy "Sistema Gaby\backups" "Sistema Gaby (git)\backups" /E /I
+   ```
+6. En la carpeta nueva: `npm install`, luego los pasos 3–5 de la Opción A de esta guía (migrar con
+   `prisma migrate deploy`, `npm run db:seed`, reconstruir/reiniciar).
+7. **Verificar** que la carpeta nueva funciona igual (o mejor) que la vieja — login, datos de
+   prueba visibles, pantallas nuevas de la fase.
+8. Solo cuando confirmes que quedó bien: renombra la carpeta vieja (ej. `Sistema Gaby (respaldo
+   pre-git)`, no la borres todavía) y, si usas un acceso directo o tarea programada de Windows
+   para arrancar el sistema, actualízalo para que apunte a la carpeta nueva.
+
+### Actualización ya con Git configurado (todas las veces siguientes)
 ```powershell
 git pull
 npm install
@@ -123,10 +141,10 @@ npm run build -w client   # o npm run dev si es modo desarrollo
 Los pasos 2 en adelante son idénticos a la Opción A — Git solo simplificó y volvió seguro el
 paso 1.
 
-## Recomendación
+## Estado actual
 
-Vale la pena configurar Git ahora, antes de que la instalación del cliente tenga datos de
-producción reales (según lo conversado, todavía es ambiente de pruebas) — es el momento más
-barato para hacerlo. Con un repositorio privado en GitHub (la opción más simple si el
-restaurante tiene internet) o uno "bare" local (si prefieres no depender de un servicio externo),
-las actualizaciones futuras pasan de "copiar con cuidado y rezar" a `git pull` sin pensar.
+Git ya está configurado (Fase 18): repositorio privado en
+[github.com/7fiend/Sistema-Gaby](https://github.com/7fiend/Sistema-Gaby), commit inicial
+etiquetado `fase-18`. Falta conectar el PC del cliente por primera vez (sección de arriba) — una
+vez hecho eso, cada fase futura se sube ahí y la actualización en el PC del cliente es la sección
+"Actualización ya con Git configurado".

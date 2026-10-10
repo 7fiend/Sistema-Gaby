@@ -55,6 +55,25 @@ enum ProductUsageType {
   ROUTINE // aseo/rutina: se descuenta por registro manual diario, no por báscula
 }
 
+/// Fase 19: grupo de la empleada para el horario mensual.
+enum EmployeeGroup {
+  KITCHEN // cocina: su horario se llena a mano en la grilla
+  AUXILIARY // auxiliar: entra a la generación automática
+}
+
+/// Fase 19: códigos del horario (el antiguo "A" de apoyo se retiró — el cliente ya no tiene apoyo).
+enum ShiftCode {
+  M // 5:00 a.m. – 1:00 p.m.
+  T // 9:00 a.m. – 5:00 p.m.
+  C // 5:00 a.m. – 1:00 p.m. y 3:00 – 5:00 p.m. (turno partido)
+  D // descanso
+}
+
+enum ScheduleStatus {
+  DRAFT
+  PUBLISHED
+}
+
 enum UnitKind {
   WEIGHT // kg, g, lb
   VOLUME // l, ml
@@ -185,6 +204,7 @@ model User {
   recipeVersions   RecipeVersion[]
   backups          Backup[]
   reports          Report[]
+  shiftSchedules   ShiftSchedule[]
 
   @@index([roleId])
   @@map("users")
@@ -672,4 +692,69 @@ model Report {
 
   @@index([type, createdAt])
   @@map("reports")
+}
+
+// =============================================================================
+// HORARIOS DE EMPLEADAS (Fase 19)
+// =============================================================================
+
+/// Personal del restaurante que se programa en el horario. NO es un User:
+/// las empleadas no necesariamente tienen cuenta para entrar al sistema.
+model Employee {
+  id               String        @id @default(cuid())
+  fullName         String
+  group            EmployeeGroup
+  // Turno que hace SIEMPRE que trabaja (ej. Katherine → M). Null = rota.
+  fixedShift       ShiftCode?
+  // Descansa todos los sábados y domingos (ej. Katherine). Ocupa el cupo de
+  // descanso del fin de semana, así que el resto de auxiliares lo trabaja.
+  fixedWeekendRest Boolean       @default(false)
+  // Orden de las filas en la grilla y de la rotación de descansos.
+  displayOrder     Int           @default(0)
+  isActive         Boolean       @default(true)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  assignments ShiftAssignment[]
+
+  @@map("employees")
+}
+
+/// Un horario por mes. Se puede seguir editando después de publicado
+/// (decisión del cliente) — cada cambio queda en auditoría con antes/después.
+model ShiftSchedule {
+  id          String         @id @default(cuid())
+  year        Int
+  month       Int // 1–12
+  status      ScheduleStatus @default(DRAFT)
+  // Quién sigue en la rotación de descansos al mes siguiente: así el orden
+  // continúa corrido entre meses. Id de Employee sin FK a propósito (si esa
+  // empleada se desactiva, el siguiente mes arranca desde el inicio).
+  nextRestEmployeeId String?
+  createdById String
+  publishedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  createdBy   User              @relation(fields: [createdById], references: [id])
+  assignments ShiftAssignment[]
+
+  @@unique([year, month])
+  @@map("shift_schedules")
+}
+
+/// Una celda de la grilla: empleada × día → código. Celda vacía = sin fila.
+model ShiftAssignment {
+  id         String    @id @default(cuid())
+  scheduleId String
+  employeeId String
+  date       DateTime  @db.Date
+  code       ShiftCode
+
+  schedule ShiftSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  employee Employee      @relation(fields: [employeeId], references: [id])
+
+  @@unique([scheduleId, employeeId, date])
+  @@index([employeeId, date])
+  @@map("shift_assignments")
 }

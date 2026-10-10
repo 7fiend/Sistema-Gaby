@@ -101,3 +101,14 @@ export type MealTime = (typeof MEAL_TIMES)[number];
 /** Fase 18: RECIPE se descuenta por producción/báscula; ROUTINE por registro manual diario. */
 export const PRODUCT_USAGE_TYPES = ['RECIPE', 'ROUTINE'] as const;
 export type ProductUsageType = (typeof PRODUCT_USAGE_TYPES)[number];
+
+/** Fase 19: grupo de la empleada en el horario mensual. */
+export const EMPLOYEE_GROUPS = ['KITCHEN', 'AUXILIARY'] as const;
+export type EmployeeGroup = (typeof EMPLOYEE_GROUPS)[number];
+
+/** Fase 19: códigos del horario mensual (D = descanso). */
+export const SHIFT_CODES = ['M', 'T', 'C', 'D'] as const;
+export type ShiftCode = (typeof SHIFT_CODES)[number];
+
+export const SCHEDULE_STATUSES = ['DRAFT', 'PUBLISHED'] as const;
+export type ScheduleStatus = (typeof SCHEDULE_STATUSES)[number];

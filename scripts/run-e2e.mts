@@ -22,6 +22,7 @@ const SUITES = [
   'test-11.mts',
   'test-12.mts',
   'test-13.mts',
+  'test-19.mts',
   'test-realtime.mts',
 ];
 

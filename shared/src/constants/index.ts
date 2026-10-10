@@ -1,4 +1,4 @@
-import type { MealTime, WeekDay } from '../types/enums.js';
+import type { EmployeeGroup, MealTime, ShiftCode, WeekDay } from '../types/enums.js';
 
 /** Fase 18: etiquetas es-CO — único lugar que traduce estos enums para la UI. */
 export const WEEK_DAY_LABELS: Record<WeekDay, string> = {
@@ -17,6 +17,19 @@ export const MEAL_TIME_LABELS: Record<MealTime, string> = {
   LUNCH: 'Almuerzo',
   AFTERNOON_SNACK: 'Merienda (tarde)',
   DINNER: 'Cena',
+};
+
+/** Fase 19: horario de cada código (único lugar que los traduce para la UI y el Excel). */
+export const SHIFT_CODE_LABELS: Record<ShiftCode, string> = {
+  M: '5:00 a.m. – 1:00 p.m.',
+  T: '9:00 a.m. – 5:00 p.m.',
+  C: '5:00 a.m. – 1:00 p.m. y 3:00 – 5:00 p.m. (turno partido)',
+  D: 'Descanso',
+};
+
+export const EMPLOYEE_GROUP_LABELS: Record<EmployeeGroup, string> = {
+  KITCHEN: 'Cocina',
+  AUXILIARY: 'Auxiliar',
 };
 
 /** Códigos de error estables (el frontend los mapea a mensajes en español). */
@@ -52,6 +65,8 @@ export const SETTING_KEYS = {
   AUTH_LOCK_MINUTES: 'auth.lockMinutes',
   BACKUP_SCHEDULE: 'backup.schedule',
   BACKUP_RETENTION_COUNT: 'backup.retentionCount',
+  BUSINESS_NAME: 'business.name',
+  BUSINESS_NIT: 'business.nit',
 } as const;
 
 /** Valores por defecto (coinciden con el seed). */

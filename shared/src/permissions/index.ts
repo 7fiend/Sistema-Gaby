@@ -25,6 +25,10 @@ export const PERMISSION_MATRIX = {
   menu: ['read', 'update'],
   /** Fase 18: registrar consumo diario de productos de aseo (no pasa por inventory:adjust). */
   routine: ['register'],
+  /** Fase 19: personal que se programa en el horario (no son cuentas de usuario). */
+  employees: ['read', 'create', 'update', 'deactivate'],
+  /** Fase 19: horario mensual — editar sigue permitido después de publicar (queda en auditoría). */
+  schedules: ['read', 'generate', 'update', 'publish'],
 } as const;
 
 export type Resource = keyof typeof PERMISSION_MATRIX;

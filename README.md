@@ -79,7 +79,7 @@ npm run db:seed           # datos de prueba (idempotente, se puede correr varias
 npm run db:studio         # explorador visual de la base de datos
 
 npm test                  # unit + integración (Vitest, server/) — requiere BD de prueba, no el dev server
-npm run test:e2e          # las 8 suites E2E de negocio en un solo comando — requiere `npm run dev` corriendo
+npm run test:e2e          # las 9 suites E2E de negocio en un solo comando — requiere `npm run dev` corriendo
 ```
 
 Detalle de pruebas (BD de prueba dedicada, cómo correr una suite suelta, qué cubre cada una):

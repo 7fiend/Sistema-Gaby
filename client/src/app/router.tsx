@@ -25,6 +25,7 @@ import { CategoriesPage } from '@/features/categories/CategoriesPage';
 import { WeeklyMenuPage } from '@/features/weeklyMenu/WeeklyMenuPage';
 import { TodayMenuPage } from '@/features/weeklyMenu/TodayMenuPage';
 import { RoutineConsumptionPage } from '@/features/delivery/RoutineConsumptionPage';
+import { SchedulesPage } from '@/features/schedules/SchedulesPage';
 
 /**
  * Rutas de los tres módulos, protegidas por permiso de la matriz compartida.
@@ -49,6 +50,7 @@ export const router = createBrowserRouter([
           { path: 'recetas/:id', element: <RecipeDetailPage /> },
           { path: 'menu-semanal', element: <WeeklyMenuPage /> },
           { path: 'menu-hoy', element: <TodayMenuPage /> },
+          { path: 'horarios', element: <SchedulesPage /> },
           { path: 'inventario', element: <ProductsPage /> },
           { path: 'inventario/:id', element: <ProductDetailPage /> },
           { path: 'ventas', element: <SalesPage /> },

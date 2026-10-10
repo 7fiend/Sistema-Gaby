@@ -85,6 +85,34 @@ CRUD de recetas con costeo automático:
   movimiento nuevo que compensa al anterior.
 - Las alertas de **stock bajo** y **lotes por vencer** aparecen solas en el Dashboard.
 
+## Horarios
+
+El horario mensual de las empleadas. Tiene dos pestañas:
+
+**Empleadas** — el personal que se programa (no son usuarios del sistema: no necesitan clave).
+Para cada una se indica si es de **Cocina** (su horario se llena a mano) o **Auxiliar** (el
+sistema lo genera solo). A una auxiliar se le puede fijar un **turno** (por ejemplo, siempre `M`)
+y marcar que **descansa fijo los fines de semana**. El orden define cómo aparecen en la grilla.
+
+**Horario del mes** — eliges el mes y presionas **Generar horario**. El sistema arma las
+auxiliares con estas reglas:
+- Cada día descansa **una sola** auxiliar.
+- Quien tiene el descanso fijo de fin de semana descansa sábado y domingo; las demás descansan
+  entre semana, en bloques de **2 días seguidos** (a veces 3, para que cuadren los 5 días hábiles).
+- Entre las que trabajan se cubren `M` (5:00 a.m.–1:00 p.m.), `T` (9:00 a.m.–5:00 p.m.) y `C`
+  (5:00 a.m.–1:00 p.m. y 3:00–5:00 p.m.), repartidos parejo en el mes.
+- El orden de quién descansa sigue corrido de un mes al siguiente.
+
+Para cambiar cualquier turno (o llenar las filas de cocina), toca la celda y elige el código;
+`—` la deja vacía. Si un día queda mal cubierto (dos descansando, o nadie en un turno), el día se
+marca en rojo y aparece un aviso abajo: es solo un aviso, no impide guardar.
+
+Mientras está en **Borrador** puedes usar **Regenerar** (recalcula las auxiliares; lo que hayas
+llenado de cocina se conserva). Cuando esté listo, **Publicar**. Un horario publicado se puede
+seguir corrigiendo celda por celda (incapacidades, cambios de turno), y cada cambio queda en
+**Auditoría** con lo que había antes. **Exportar Excel** descarga el horario con el formato de
+siempre, con la razón social y el NIT que estén en **Configuración → Empresa**.
+
 ## Ventas
 
 Registro diario de ventas por receta. Solo se permite **un registro por día** — si ya
@@ -143,6 +171,6 @@ Copias de seguridad completas de la base de datos:
 
 ## Configuración
 
-Parámetros globales del sistema: tolerancia de báscula, margen de precio sugerido por defecto,
+Parámetros globales del sistema: razón social y NIT de la empresa (salen en el horario exportado), tolerancia de báscula, margen de precio sugerido por defecto,
 días de anticipación para alertar vencimientos, intentos de login antes de bloquear una cuenta y
 minutos de bloqueo, horario y cantidad de respaldos a conservar. Los cambios quedan auditados.

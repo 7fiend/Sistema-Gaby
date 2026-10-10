@@ -10,6 +10,8 @@ import type { IAuditLogger } from '../../ports/IAuditLogger.js';
 
 /** Campo de la UI (camelCase) → clave persistida en app_settings. */
 const KEY_MAP: Record<keyof SettingsValues, string> = {
+  businessName: SETTING_KEYS.BUSINESS_NAME,
+  businessNit: SETTING_KEYS.BUSINESS_NIT,
   toleranceKg: SETTING_KEYS.SCALE_TOLERANCE_KG,
   stableSamples: SETTING_KEYS.SCALE_STABLE_SAMPLES,
   stableDeltaKg: SETTING_KEYS.SCALE_STABLE_DELTA_KG,
@@ -23,6 +25,8 @@ const KEY_MAP: Record<keyof SettingsValues, string> = {
 
 /** Defaults si la clave no existe aún en BD (coinciden con el seed). */
 const FALLBACKS: SettingsValues = {
+  businessName: '',
+  businessNit: '',
   toleranceKg: DEFAULTS.toleranceKg,
   stableSamples: DEFAULTS.stableSamples,
   stableDeltaKg: DEFAULTS.stableDeltaKg,

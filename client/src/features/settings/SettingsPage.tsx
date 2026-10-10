@@ -26,6 +26,14 @@ interface SectionDef {
 /** Agrupación visual de app_settings (mismos campos que settingsSchema). */
 const SECTIONS: SectionDef[] = [
   {
+    title: 'Empresa',
+    description: 'Aparece en el encabezado del horario exportado a Excel.',
+    fields: [
+      { name: 'businessName', label: 'Razón social', hint: 'Ej: Suministros de Alimentación M&S S.A.S', type: 'text' },
+      { name: 'businessNit', label: 'NIT', hint: 'Ej: 901.297.272', type: 'text' },
+    ],
+  },
+  {
     title: 'Báscula y tolerancia',
     description: 'Rigen la entrega en bodega. La tolerancia se congela por orden al confirmarla (RN-04).',
     fields: [
